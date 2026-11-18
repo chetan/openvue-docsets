@@ -11,6 +11,8 @@ Do not add a web server, Nuxt runtime, or Tradecraft app dependencies.
 
 - `cmd/openvue-docsets/`: CLI, version, flags, process exit.
 - `internal/docset/`: Markdown conversion, icon pages, bundles, search indexes.
+- `internal/docset/navigation.{go,css,js}`: native TOC markers and persistent
+  component browser. The CSS and JavaScript are embedded in the Go binary.
 - `scripts/fetch.sh`: pinned, read-only-after-clone upstream source setup.
 - `renderer/`: build-time extraction of original website demos, offline assets,
   Vue docset host, renderer tests, and file-URL browser tests.
@@ -49,6 +51,11 @@ Compile the original feature SFCs. Do not execute Markdown snippets or replace
 real examples with fabricated placeholders. Keep site-specific adapters small.
 Do not use ESM imports, dynamic chunks or runtime fetches: Dash opens file URLs.
 Preserve example load events and component services. Do not hide demo failures.
+Keep Dash TOC markers and section wrappers outside Vue's mount root. Use
+Teleport into static demo slots so anchor identities survive rendering.
+Maintain the renderer format version when changing the host/slot contract;
+the builder must reject stale compiled assets. Test marker preservation,
+component navigation, active-page state, and narrow-window disclosure.
 Set Dash's JavaScript flag only for OpenVue, not for the static OpenIcons set.
 Preserve upstream license files and revision provenance in both bundles.
 Do not commit downloaded sources, generated bundles, local config, or secrets.

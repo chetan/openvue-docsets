@@ -98,6 +98,25 @@ new bundle to reload its metadata. Do not remove OpenIcons.
 Media provenance is in `media-manifest.json`. Bundled package licenses are in
 `THIRD_PARTY_LICENSES.txt`. The example manifest also records the source revision.
 
+## Navigation
+
+- Dash's native **current-page table of contents** lists the examples and
+  reference sections. Use it to jump to Basic, Accessibility, Props, and other
+  sections without searching again.
+- **Browse OpenVue** is a separate component-and-guide list inside the page.
+  The current page is highlighted and scrolled into view. Links open the local
+  documentation files. The list stays beside the article in wide windows and
+  folds into a disclosure in narrow windows.
+
+The native TOC uses Dash's `dashtoc` family and percent-encoded `dashAnchor`
+markers. These markers and section wrappers exist in the generated HTML before
+JavaScript runs. Vue teleports each live example into its own static slot;
+mounting examples does not remove or recreate the TOC anchors.
+
+Reopen the rebuilt `.docset` in Dash to refresh its metadata. If an old
+registration still lacks a TOC, remove only OpenVue in Settings and re-add it.
+The builder rejects stale renderer formats; rebuild examples with the CLI.
+
 ## Scope and limits
 
 - The docset includes the website's feature demos, not its Nuxt navigation,
