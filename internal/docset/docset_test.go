@@ -3,6 +3,7 @@ package docset
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"io"
 	"os"
 	"os/exec"
@@ -52,6 +53,7 @@ func TestBuild(t *testing.T) {
 		}
 	}
 	write(vue, "LICENSE.md", "Vue MIT license")
+	write(vue, "apps/showcase/server/assets/llms/llms.txt", "[Button](https://openvue.dev/button)")
 	write(vue, "apps/showcase/server/assets/llms/components/button.md", "# Button\n\n```js\nimport Button from 'openvue/button';\n```\n\n## Button\n\n### Props\n\n| Name | Type |\n| --- | --- |\n| label | string |\n")
 	write(icons, "LICENSE", "Icons MIT license")
 	write(icons, "selection.json", `{"icons":[{"icon":{"tags":["save"]},"properties":{"name":"check","code":59657}}]}`)
@@ -120,7 +122,10 @@ func TestBuild(t *testing.T) {
 func TestCanceledAndMissingSources(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	if err := Build(ctx, Config{OpenVue: t.TempDir(), OpenIcons: t.TempDir(), Output: t.TempDir()}, io.Discard); err == nil {
+	if err := Build(ctx, Config{}, io.Discard); !errors.Is(err, context.Canceled) {
+		t.Fatalf("cancellation not reported: %v", err)
+	}
+	if err := Build(context.Background(), Config{OpenVue: t.TempDir()}, io.Discard); err == nil {
 		t.Fatal("missing sources accepted")
 	}
 }

@@ -35,6 +35,9 @@ type page struct {
 
 // Build publishes complete bundles only. Existing bundles are never removed.
 func Build(ctx context.Context, cfg Config, log io.Writer) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	vue, err := componentPages(cfg.OpenVue)
 	if err != nil {
 		return err
@@ -93,9 +96,18 @@ func Build(ctx context.Context, cfg Config, log io.Writer) error {
 var md = goldmark.New(goldmark.WithExtensions(extension.GFM), goldmark.WithParserOptions(parser.WithAutoHeadingID()))
 var importName = regexp.MustCompile(`import ([A-Z][A-Za-z0-9]*) from ['"]openvue/`)
 var iconName = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
+var documentationURL = regexp.MustCompile(`https://openvue\.dev/[a-zA-Z0-9/-]+`)
 
 func componentPages(root string) ([]page, error) {
 	base := filepath.Join(root, "apps/showcase/server/assets/llms")
+	manifest, err := os.ReadFile(filepath.Join(base, "llms.txt"))
+	if err != nil {
+		return nil, fmt.Errorf("read OpenVue page manifest: %w", err)
+	}
+	urls := map[string]string{}
+	for _, online := range documentationURL.FindAllString(string(manifest), -1) {
+		urls[filepath.Base(online)] = online
+	}
 	var pages []page
 	for _, group := range []string{"components", "pages"} {
 		files, err := filepath.Glob(filepath.Join(base, group, "*.md"))
@@ -116,7 +128,11 @@ func componentPages(root string) ([]page, error) {
 					kind = "Component"
 				}
 			}
-			p, err := markdownPage(name, group+"-"+slug+".html", "https://openvue.dev/"+slug, source, kind)
+			online := urls[slug]
+			if online == "" {
+				online = "https://openvue.dev/" + slug
+			}
+			p, err := markdownPage(name, group+"-"+slug+".html", online, source, kind)
 			if err != nil {
 				return nil, err
 			}
@@ -147,6 +163,11 @@ func markdownPage(name, file, online string, source []byte, kind string) (page, 
 				link.Destination = []byte(base.ResolveReference(dest).String())
 			}
 		}
+		if image, ok := n.(*ast.Image); ok {
+			if dest, err := url.Parse(string(image.Destination)); err == nil {
+				image.Destination = []byte(base.ResolveReference(dest).String())
+			}
+		}
 		if h, ok := n.(*ast.Heading); ok {
 			label := string(h.Text(source))
 			if h.Level == 2 {
@@ -161,14 +182,14 @@ func markdownPage(name, file, online string, source []byte, kind string) (page, 
 		}
 		if row, ok := n.(*extast.TableRow); ok && row.FirstChild() != nil {
 			types := map[string]string{"Props": "Property", "Events": "Event", "Emits": "Event", "Slots": "Method", "Design Tokens": "Variable", "Pass Through Options": "Property"}
-			if kind := types[section]; kind != "" {
+			if entryType := types[section]; entryType != "" {
 				member := strings.TrimSpace(string(row.FirstChild().Text(source)))
 				if member != "" {
 					memberOwner := name
-					if section == "Props" || section == "Events" || section == "Emits" || section == "Slots" {
+					if kind == "Component" && (section == "Props" || section == "Events" || section == "Emits" || section == "Slots") {
 						memberOwner = owner
 					}
-					p.Entries = append(p.Entries, entry{memberOwner + "." + member, kind, file + "#" + anchor})
+					p.Entries = append(p.Entries, entry{memberOwner + "." + member, entryType, file + "#" + anchor})
 				}
 			}
 		}
