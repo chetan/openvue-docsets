@@ -1,0 +1,75 @@
+@layer tailwind-base, openvue, tailwind-utilities;
+@layer tailwind-base {
+  @tailwind base;
+}
+@layer tailwind-utilities {
+  @tailwind components;
+  @tailwind utilities;
+}
+
+:root {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 14px;
+}
+body {
+  color-scheme: light;
+  background: #fff;
+  color: #334155;
+}
+h1 {
+  font-size: 2rem;
+  font-weight: 650;
+  margin-block: 1.5rem 1rem;
+}
+h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+h4 {
+  font-weight: 600;
+  margin-block: 1rem;
+}
+#rendered-examples {
+  --primary-color: var(--p-primary-color);
+  --text-color: var(--p-text-color);
+  --surface-card: var(--p-content-background);
+}
+.live-section {
+  margin-block: 2.5rem;
+  scroll-margin-top: 1rem;
+}
+.live-section .card {
+  padding: 2rem;
+  margin-block: 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+.live-section p {
+  margin-block: 1rem;
+}
+.example-code summary {
+  cursor: pointer;
+  font-size: 13px;
+  color: #047857;
+}
+.example-code pre {
+  max-height: 36rem;
+}
+.example-error {
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+  padding: 1rem;
+}
+.live-section table {
+  display: table;
+}
+.live-section th,
+.live-section td {
+  min-width: unset;
+  border: none;
+}
