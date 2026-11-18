@@ -4,13 +4,17 @@
 
 This standalone Go CLI builds separate OpenVue and OpenIcons Dash docsets.
 Use Cobra for commands, Goldmark for Markdown, and modernc SQLite for indexes.
-Do not add a web server, frontend runtime, or Tradecraft app dependencies.
+The offline examples use Vue and OpenVue bundled as a classic IIFE with Vite.
+Do not add a web server, Nuxt runtime, or Tradecraft app dependencies.
 
 ## Layout
 
 - `cmd/openvue-docsets/`: CLI, version, flags, process exit.
 - `internal/docset/`: Markdown conversion, icon pages, bundles, search indexes.
 - `scripts/fetch.sh`: pinned, read-only-after-clone upstream source setup.
+- `renderer/`: build-time extraction of original website demos, offline assets,
+  Vue docset host, renderer tests, and file-URL browser tests.
+- `package.json`, `bun.lock`: pinned renderer runtime and build dependencies.
 - `Makefile`: source revisions and root commands.
 - `.cache/`, `bin/`, `dist/`: ignored source cache and generated output.
 
@@ -23,11 +27,17 @@ Run from the repository root:
 - Format: `make format`
 - Tests and checks: `make check`
 - Build CLI: `make build`
+- Bundle interactive examples: `make examples`
 - Generate docsets: `make docsets`
 - Package bundles: `make package`
 - New output directory: `make docsets OUTPUT=dist/update-1`
+- Install browser test tools: `make browser-setup`
+- Offline Chromium/WebKit tests: `make test-browser OUTPUT=dist/update-1`
 
-Tests use local fixtures and need no network. Fetch needs GitHub access.
+Unit tests use local fixtures and need no network. Fetch needs GitHub access.
+Example builds download and cache demo media in `.cache/media/`. Later builds
+can use the cached media offline. Browser tests use file URLs and disable
+network access. They need Python and the tools from `make browser-setup`.
 No local services, credentials, environment prefix, or configuration files
 are required. Flags select input checkouts and output paths.
 
@@ -35,6 +45,11 @@ are required. Flags select input checkouts and output paths.
 
 Upstream documentation and icons are external inputs, not project-owned code.
 Consult current upstream docs before changing generated API examples.
+Compile the original feature SFCs. Do not execute Markdown snippets or replace
+real examples with fabricated placeholders. Keep site-specific adapters small.
+Do not use ESM imports, dynamic chunks or runtime fetches: Dash opens file URLs.
+Preserve example load events and component services. Do not hide demo failures.
+Set Dash's JavaScript flag only for OpenVue, not for the static OpenIcons set.
 Preserve upstream license files and revision provenance in both bundles.
 Do not commit downloaded sources, generated bundles, local config, or secrets.
 Never remove existing output or reset source checkouts automatically.
