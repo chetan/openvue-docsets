@@ -122,7 +122,7 @@ func TestBuild(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	manifest := `{"revision":"` + strings.TrimSpace(string(revision)) + `","pages":[{"slug":"button","features":[{"id":"basic","label":"Basic"}]}]}`
+	manifest := `{"formatVersion":2,"revision":"` + strings.TrimSpace(string(revision)) + `","pages":[{"slug":"button","features":[{"id":"basic","label":"Basic"}]}]}`
 	write(examples, "manifest.json", manifest)
 	write(examples, "examples.js", "/* compiled fixture */")
 	write(examples, "examples.css", "/* fixture styles */")
@@ -145,10 +145,14 @@ func TestBuild(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{`id="example-basic"`, `data-component="button"`, `src="examples.js"`, `connect-src 'none'`, `id="props"`} {
+	for _, want := range []string{`id="example-basic"`, `data-component="button"`, `src="examples.js"`, `connect-src 'none'`, `id="props"`, `id="example-runtime"`, `id="demo-basic"`, `//apple_ref/cpp/Sample/Basic`, `//apple_ref/cpp/Section/Reference%20%2F%20Props`, `aria-current="page"`} {
 		if !strings.Contains(string(body), want) {
 			t.Fatalf("missing %s", want)
 		}
+	}
+	plist, err := os.ReadFile(filepath.Join(cfg.Output, "OpenVue.docset/Contents/Info.plist"))
+	if err != nil || !strings.Contains(string(plist), `<key>DashDocSetFamily</key><string>dashtoc</string>`) {
+		t.Fatal("missing native TOC metadata", err)
 	}
 	if _, err := os.Stat(filepath.Join(cfg.Output, "OpenVue.docset/Contents/Resources/Documents/media/image.svg")); err != nil {
 		t.Fatal(err)
@@ -157,6 +161,10 @@ func TestBuild(t *testing.T) {
 	cfg.Output = filepath.Join(root, "mismatched")
 	if err := Build(context.Background(), cfg, io.Discard); err == nil {
 		t.Fatal("accepted mismatched source revision")
+	}
+	write(examples, "manifest.json", strings.Replace(manifest, `"formatVersion":2`, `"formatVersion":1`, 1))
+	if err := Build(context.Background(), cfg, io.Discard); err == nil {
+		t.Fatal("accepted stale renderer format")
 	}
 }
 

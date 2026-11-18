@@ -17,6 +17,13 @@ def run():
             browser = getattr(playwright, engine).launch(headless=True)
             context = browser.new_context(offline=True, viewport={"width": 1280, "height": 900})
             page = context.new_page()
+            page.add_init_script("""window.removedDashAnchors = [];
+                new MutationObserver(records => {
+                    for (const record of records) for (const node of record.removedNodes) {
+                        if (node.nodeType === 1 && (node.matches('.dashAnchor') || node.querySelector('.dashAnchor')))
+                            window.removedDashAnchors.push(node.outerHTML.slice(0, 200));
+                    }
+                }).observe(document, { childList: true, subtree: true });""")
             errors, failed, remote = [], [], []
             page.on("pageerror", lambda error: errors.append(str(error)))
             page.on("console", lambda message: errors.append(message.text) if message.type == "error" else None)
@@ -28,12 +35,18 @@ def run():
                 failed.clear()
                 remote.clear()
                 page.goto((docs / f"components-{slug}.html").as_uri())
-                page.wait_for_load_state("networkidle")
+                # file:// has no network idle contract. Wait for the document
+                # and our explicit post-mount signal before inspecting demos.
+                page.wait_for_load_state("load")
                 expect(page.locator("html")).to_have_attribute("data-examples-ready", "true")
                 assert not page.locator(".example-error").count(), page.locator(".example-error").all_text_contents()
                 assert not errors, errors
                 assert not failed, failed
                 assert not remote, remote
+                assert page.locator("a.dashAnchor").count() > 0
+                assert page.evaluate("window.removedDashAnchors") == []
+                current = page.locator('.component-list a[aria-current="page"]')
+                expect(current).to_have_attribute("href", f"components-{slug}.html")
 
             visit("datepicker")
             basic = page.locator("#example-basic input")
@@ -45,6 +58,21 @@ def run():
             expect(calendar).not_to_be_visible()
             expect(page.locator("#example-inline table").first).to_be_visible()
             page.locator("#example-basic").screenshot(path=f".cache/{engine}-datepicker-live.png")
+            assert page.locator('a.dashAnchor[name="//apple_ref/cpp/Sample/Basic"]').count() == 1
+            basic_anchor = page.locator('a.dashAnchor[name="//apple_ref/cpp/Sample/Basic"]')
+            page.evaluate("(name) => { location.hash = name; }", basic_anchor.get_attribute("name"))
+            expect(page.locator("#example-basic")).to_be_in_viewport()
+            page.locator(".component-list").get_by_role("link", name="Dialog", exact=True).click()
+            page.wait_for_load_state("load")
+            expect(page.locator('.component-list a[aria-current="page"]')).to_have_text("Dialog")
+            page.set_viewport_size({"width":600,"height":900})
+            expect(page.locator(".component-browser details")).not_to_have_attribute("open","")
+            page.locator(".component-browser summary").click()
+            expect(page.locator(".component-browser details")).to_have_attribute("open","")
+            page.locator(".component-list").get_by_role("link", name="DatePicker", exact=True).click()
+            page.wait_for_load_state("load")
+            expect(page.locator('.component-list a[aria-current="page"]')).to_have_text("DatePicker")
+            page.set_viewport_size({"width":1280,"height":900})
 
             visit("button")
             button = page.locator("#example-basic button").first
@@ -73,12 +101,14 @@ def run():
                     errors.clear()
                     failed.clear()
                     remote.clear()
-                    page.goto(file.as_uri(), wait_until="networkidle")
+                    page.goto(file.as_uri(), wait_until="load")
                     expect(page.locator("html")).to_have_attribute("data-examples-ready", "true")
                     assert not page.locator(".example-error").count(), (file.name, page.locator(".example-error").all_text_contents())
                     assert not errors, (file.name, errors)
                     assert not failed, (file.name, failed)
                     assert not remote, (file.name, remote)
+                    assert page.locator("a.dashAnchor").count() > 0, file.name
+                    assert page.evaluate("window.removedDashAnchors") == [], file.name
                     checked += 1
             report[engine] = {"checks": checked, "network_requests": 0, "errors": 0}
             context.close()

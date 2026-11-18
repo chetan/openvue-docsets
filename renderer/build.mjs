@@ -124,6 +124,6 @@ const revision = execFileSync("git", ["-C", source, "rev-parse", "HEAD"], {
 }).trim();
 await writeFile(
   path.join(output, "manifest.json"),
-  JSON.stringify({ revision, pages }, null, 2) + "\n",
+  JSON.stringify({ formatVersion: 2, revision, pages }, null, 2) + "\n",
 );
 console.log(`Bundled original examples for ${pages.length} OpenVue pages.`);

@@ -301,11 +301,22 @@ func writeBundle(ctx context.Context, output, name string, pages []page, license
 <key>dashIndexFilePath</key><string>index.html</string>
 <key>DashDocSetDefaultFTSEnabled</key><true/>
 </dict></plist>`, strings.ToLower(name), name, strings.ToLower(name))
+	if name == "OpenVue" {
+		plist = strings.Replace(plist, "</dict>", "<key>DashDocSetFamily</key><string>dashtoc</string>\n</dict>", 1)
+	}
 	if err := write(filepath.Join(root, "Contents/Info.plist"), plist); err != nil {
 		return err
 	}
 	if err := write(filepath.Join(docs, "style.css"), stylesheet); err != nil {
 		return err
+	}
+	if name == "OpenVue" {
+		if err := write(filepath.Join(docs, "navigation.css"), navigationCSS); err != nil {
+			return err
+		}
+		if err := write(filepath.Join(docs, "navigation.js"), navigationJS); err != nil {
+			return err
+		}
 	}
 	if err := write(filepath.Join(docs, "LICENSE.txt"), license); err != nil {
 		return err
@@ -348,9 +359,15 @@ func writeBundle(ctx context.Context, output, name string, pages []page, license
 			}
 		}
 		body := p.Body
+		if name == "OpenVue" {
+			body = referenceTOC(p)
+		}
 		for online, local := range localLinks {
 			body = strings.ReplaceAll(body, `href="`+html.EscapeString(online)+`"`, `href="`+local+`"`)
 			body = strings.ReplaceAll(body, `href="`+html.EscapeString(online)+`#`, `href="`+local+`#`)
+		}
+		if name == "OpenVue" {
+			body = withNavigation(p.File, pages, body)
 		}
 		if err := write(filepath.Join(docs, p.File), document(p.Name, p.Online, body)); err != nil {
 			return err
@@ -363,7 +380,11 @@ func writeBundle(ctx context.Context, output, name string, pages []page, license
 		}
 	}
 	index.WriteString(`</ul><p><a href="LICENSE.txt">Upstream license</a>. Unofficial docsets.</p>`)
-	if err := write(filepath.Join(docs, "index.html"), document(name, "", index.String())); err != nil {
+	indexBody := index.String()
+	if name == "OpenVue" {
+		indexBody = withNavigation("index.html", pages, indexBody)
+	}
+	if err := write(filepath.Join(docs, "index.html"), document(name, "", indexBody)); err != nil {
 		return err
 	}
 	return tx.Commit()

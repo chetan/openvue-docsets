@@ -1,4 +1,4 @@
-import { createApp, defineComponent, h, onErrorCaptured, onMounted, ref } from "vue";
+import { createApp, defineComponent, h, onErrorCaptured, onMounted, ref, Teleport } from "vue";
 import * as OpenVueComponents from "openvue";
 import OpenVue from "openvue/config";
 import Aura from "@openvue/themes/aura";
@@ -39,9 +39,12 @@ if (mount) {
     setup(props) {
       return () =>
         props.docs.map((doc) =>
-          h("section", { class: "live-section", id: `example-${doc.id}`, "data-example": doc.id }, [
+          h(Teleport, { to: `#demo-${doc.id}`, key: doc.id }, [
             doc.children
-              ? [h("h2", doc.label), h(DocSections, { docs: doc.children })]
+              ? [
+                  doc.description ? h("div", { innerHTML: doc.description }) : null,
+                  h(DocSections, { docs: doc.children }),
+                ]
               : h(ErrorBoundary, null, {
                   default: () =>
                     h(doc.component, {
@@ -100,7 +103,9 @@ if (mount) {
     inheritAttrs: false,
     setup(_, { attrs, slots }) {
       return () => [
-        h(attrs.level === 2 ? "h3" : "h2", attrs.label),
+        document.getElementById(`example-${attrs.id}`)
+          ? null
+          : h(attrs.level === 2 ? "h3" : "h2", attrs.label),
         h("div", { class: "doc-section-description" }, slots.default?.()),
       ];
     },
@@ -148,7 +153,8 @@ if (mount) {
   });
   app.component("OpenVueNuxtLink", app.component("NuxtLink"));
   app.directive("code", {});
-  app.mount(mount);
+  mount.querySelectorAll(".demo-loading").forEach((element) => element.remove());
+  app.mount(document.getElementById("example-runtime"));
   document.documentElement.dataset.examplesReady = "true";
   if (location.hash.startsWith("#example-")) {
     requestAnimationFrame(() => document.getElementById(location.hash.slice(1))?.scrollIntoView());

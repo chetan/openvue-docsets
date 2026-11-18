@@ -14,8 +14,9 @@ import (
 )
 
 type exampleManifest struct {
-	Revision string
-	Pages    []struct {
+	FormatVersion int
+	Revision      string
+	Pages         []struct {
 		Slug     string
 		Features []struct{ ID, Label string }
 	}
@@ -37,6 +38,9 @@ func attachExamples(root, source string, pages []page) error {
 	var manifest exampleManifest
 	if err := json.Unmarshal(raw, &manifest); err != nil {
 		return err
+	}
+	if manifest.FormatVersion != 2 {
+		return fmt.Errorf("compiled example format is stale; run bun run examples")
 	}
 	revision, err := exec.Command("git", "-C", source, "rev-parse", "HEAD").Output()
 	if err != nil {
@@ -66,10 +70,10 @@ func attachExamples(root, source string, pages []page) error {
 			if !featureID.MatchString(feature.ID) {
 				return fmt.Errorf("invalid feature id %q", feature.ID)
 			}
-			fmt.Fprintf(&rendered, `<section id="example-%s"><h2>%s</h2><p>Loading interactive example…</p></section>`, feature.ID, html.EscapeString(feature.Label))
+			fmt.Fprintf(&rendered, `<section class="live-section" id="example-%s" data-example="%s">%s<h2>%s</h2><div id="demo-%s"><p class="demo-loading">Loading interactive example…</p></div></section>`, feature.ID, feature.ID, dashAnchor("Sample", feature.Label), html.EscapeString(feature.Label), feature.ID)
 			p.Entries = append(p.Entries, entry{p.Name + " / " + feature.Label + " example", "Sample", p.File + "#example-" + feature.ID})
 		}
-		rendered.WriteString(`</div><noscript>Enable JavaScript in Dash to display the interactive examples.</noscript><hr><section id="reference-documentation">`)
+		rendered.WriteString(`</div><div id="example-runtime"></div><noscript>Enable JavaScript in Dash to display the interactive examples.</noscript><hr><section id="reference-documentation">`)
 		rendered.WriteString(p.Body)
 		rendered.WriteString(`</section><script defer src="examples.js"></script>`)
 		p.Body = rendered.String()

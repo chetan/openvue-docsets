@@ -6,8 +6,8 @@
     "examples": "node renderer/build.mjs",
     "test:renderer": "node --test renderer/*.test.mjs",
     "test:browser": ".cache/test-venv/bin/python renderer/smoke.py",
-    "format": "oxfmt package.json renderer",
-    "format:check": "oxfmt --check package.json renderer"
+    "format": "oxfmt package.json renderer internal/docset/navigation.css internal/docset/navigation.js",
+    "format:check": "oxfmt --check package.json renderer internal/docset/navigation.css internal/docset/navigation.js"
   },
   "dependencies": {
     "@openvue/forms": "1.1.1",
