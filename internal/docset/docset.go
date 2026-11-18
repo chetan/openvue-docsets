@@ -25,7 +25,7 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-type Config struct{ OpenVue, OpenIcons, Output string }
+type Config struct{ OpenVue, OpenIcons, Output, Examples string }
 type entry struct{ Name, Type, Path string }
 type page struct {
 	Name, File, Online, Body string
@@ -48,6 +48,11 @@ func Build(ctx context.Context, cfg Config, log io.Writer) error {
 	}
 	if len(vue) == 0 || len(icons) == 0 {
 		return fmt.Errorf("source checkouts contain no documentation")
+	}
+	if cfg.Examples != "" {
+		if err := attachExamples(cfg.Examples, cfg.OpenVue, vue); err != nil {
+			return err
+		}
 	}
 	for _, name := range []string{"OpenVue", "OpenIcons"} {
 		if _, err := os.Lstat(filepath.Join(cfg.Output, name+".docset")); !os.IsNotExist(err) {
@@ -82,6 +87,21 @@ func Build(ctx context.Context, cfg Config, log io.Writer) error {
 		}
 		if err := writeBundle(ctx, stage, set.Name, set.Pages, string(license), strings.TrimSpace(string(sha))); err != nil {
 			return err
+		}
+		if set.Name == "OpenVue" && cfg.Examples != "" {
+			docs := filepath.Join(stage, "OpenVue.docset/Contents/Resources/Documents")
+			if err := copyExamples(ctx, cfg.Examples, docs); err != nil {
+				return err
+			}
+			plistPath := filepath.Join(stage, "OpenVue.docset/Contents/Info.plist")
+			plist, err := os.ReadFile(plistPath)
+			if err != nil {
+				return err
+			}
+			plist = bytes.Replace(plist, []byte("</dict>"), []byte("<key>isJavaScriptEnabled</key><true/>\n</dict>"), 1)
+			if err := os.WriteFile(plistPath, plist, 0644); err != nil {
+				return err
+			}
 		}
 	}
 	for _, name := range []string{"OpenVue", "OpenIcons"} {
@@ -351,10 +371,14 @@ func writeBundle(ctx context.Context, output, name string, pages []page, license
 
 func document(title, online, body string) string {
 	link := ""
+	policy := ""
+	if strings.Contains(body, `id="rendered-examples"`) {
+		policy = `<meta http-equiv="Content-Security-Policy" content="connect-src 'none'; frame-src 'none'; form-action 'none'">`
+	}
 	if online != "" {
 		link = ` · <a href="` + html.EscapeString(online) + `">Online documentation</a>`
 	}
-	return `<!doctype html><html lang="en"><!-- Online page at ` + html.EscapeString(online) + ` --><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>` + html.EscapeString(title) + `</title><link rel="stylesheet" href="style.css"></head><body><nav><a href="index.html">Index</a>` + link + `</nav><main>` + body + `</main></body></html>`
+	return `<!doctype html><html lang="en"><!-- Online page at ` + html.EscapeString(online) + ` --><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">` + policy + `<title>` + html.EscapeString(title) + `</title><link rel="stylesheet" href="style.css"></head><body><nav><a href="index.html">Index</a>` + link + `</nav><main>` + body + `</main></body></html>`
 }
 
 const stylesheet = `:root{color-scheme:light dark}body{font:15px/1.6 -apple-system,BlinkMacSystemFont,sans-serif;margin:24px auto;padding:0 24px;max-width:1100px}a{color:#16846b}h1,h2,h3{line-height:1.25}h2{margin-top:2em;border-bottom:1px solid #8885;padding-bottom:.4em}pre{padding:16px;overflow:auto;background:#8881;border:1px solid #8884;border-radius:6px}code{font:13px/1.5 ui-monospace,monospace}table{border-collapse:collapse;display:block;overflow:auto}th,td{text-align:left;padding:8px 12px;border:1px solid #8884;min-width:80px}td{vertical-align:top}nav{font-size:13px;margin-bottom:24px}img{max-width:100%}@media(prefers-color-scheme:dark){a{color:#62cfb1}img[src$=".svg"]{background:#eee;border-radius:8px}}`

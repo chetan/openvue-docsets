@@ -24,6 +24,7 @@ func newCommand() *cobra.Command {
 	build.Flags().StringVar(&cfg.OpenVue, "openvue", ".cache/openvue", "OpenVue source checkout")
 	build.Flags().StringVar(&cfg.OpenIcons, "icons", ".cache/openicons", "OpenIcons source checkout")
 	build.Flags().StringVar(&cfg.Output, "output", "dist", "Output parent (existing docsets are not overwritten)")
+	build.Flags().StringVar(&cfg.Examples, "examples", ".cache/examples", "Compiled offline Vue examples (empty for a reference-only build)")
 	root.AddCommand(build)
 	return root
 }

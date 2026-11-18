@@ -117,6 +117,47 @@ func TestBuild(t *testing.T) {
 	if err := Build(context.Background(), cfg, io.Discard); err == nil {
 		t.Fatal("overwrote existing bundle")
 	}
+	examples := filepath.Join(root, "examples")
+	revision, err := exec.Command("git", "-C", vue, "rev-parse", "HEAD").Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifest := `{"revision":"` + strings.TrimSpace(string(revision)) + `","pages":[{"slug":"button","features":[{"id":"basic","label":"Basic"}]}]}`
+	write(examples, "manifest.json", manifest)
+	write(examples, "examples.js", "/* compiled fixture */")
+	write(examples, "examples.css", "/* fixture styles */")
+	write(examples, "media/image.svg", "<svg/>")
+	cfg.Examples = examples
+	cfg.Output = filepath.Join(root, "interactive")
+	if err := Build(context.Background(), cfg, io.Discard); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"OpenVue", "OpenIcons"} {
+		plist, err := os.ReadFile(filepath.Join(cfg.Output, name+".docset/Contents/Info.plist"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(string(plist), "<key>isJavaScriptEnabled</key>") != (name == "OpenVue") {
+			t.Fatal("incorrect JavaScript setting", name)
+		}
+	}
+	body, err := os.ReadFile(filepath.Join(cfg.Output, "OpenVue.docset/Contents/Resources/Documents/components-button.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`id="example-basic"`, `data-component="button"`, `src="examples.js"`, `connect-src 'none'`, `id="props"`} {
+		if !strings.Contains(string(body), want) {
+			t.Fatalf("missing %s", want)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(cfg.Output, "OpenVue.docset/Contents/Resources/Documents/media/image.svg")); err != nil {
+		t.Fatal(err)
+	}
+	write(examples, "manifest.json", strings.Replace(manifest, strings.TrimSpace(string(revision)), "wrong", 1))
+	cfg.Output = filepath.Join(root, "mismatched")
+	if err := Build(context.Background(), cfg, io.Discard); err == nil {
+		t.Fatal("accepted mismatched source revision")
+	}
 }
 
 func TestCanceledAndMissingSources(t *testing.T) {
